@@ -1,26 +1,17 @@
 #include <Arduino.h>
 #include <Wire.h>
-#include <Adafruit_GFX.h>
-#include <Adafruit_SSD1306.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
-#include "config.h" // Archivo de configuración con credenciales WiFi y MQTT
+#include "config.h"
+#include <time.h>
 
-// Configuración del display OLED
-#define SCREEN_WIDTH 128 // Ancho del display en píxeles
-#define SCREEN_HEIGHT 64 // Alto del display en píxeles
-#define OLED_RESET -1    // Reset por hardware no usado en este caso
-Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
+const int sensorPin = 34; // Pin analógico del sensor de humedad
 
-// Pin donde conectamos la salida analógica del sensor
-const int sensorPin = 34; // Pin analógico del ESP32
-
-// Configuración de MQTT
 WiFiClient espClient;
 PubSubClient client(espClient);
 
-// Identificador único del dispositivo
 const char *device_id = "sensor_humedad_01";
+const int valvePin = 2; // Pin para el control del transistor
 
 void reconnectMQTT()
 {
@@ -30,7 +21,6 @@ void reconnectMQTT()
     if (client.connect(device_id, MQTT_USER, MQTT_PASSWORD))
     {
       Serial.println("Conectado!");
-      // Publicar mensaje de estado inicial
       client.publish(("sensors/" + String(device_id) + "/status").c_str(), "online");
     }
     else
@@ -45,30 +35,11 @@ void reconnectMQTT()
 
 void setup()
 {
-  // Inicializamos el monitor serie
   Serial.begin(115200);
-
-  // Configuramos el pin del sensor como entrada
   pinMode(sensorPin, INPUT);
+  pinMode(valvePin, OUTPUT);
+  digitalWrite(valvePin, LOW);
 
-  // Inicializamos el display OLED
-  if (!display.begin(0x3C, 0x3C))
-  { // Dirección I2C típica: 0x3C
-    Serial.println("Error al inicializar el display OLED");
-    while (true)
-      ; // Detenemos el programa si falla
-  }
-
-  // Limpiamos el buffer del display
-  display.clearDisplay();
-  display.setTextSize(1);              // Tamaño del texto
-  display.setTextColor(SSD1306_WHITE); // Color del texto
-  display.setCursor(0, 0);             // Posición inicial del texto
-  display.println("Iniciando...");
-  display.display(); // Mostramos el mensaje inicial
-  delay(2000);
-
-  // Conexión WiFi
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   while (WiFi.status() != WL_CONNECTED)
   {
@@ -77,7 +48,18 @@ void setup()
   }
   Serial.println("\nConectado a WiFi!");
 
-  // Configuración del cliente MQTT
+  // Configura NTP
+  configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+  Serial.println("Esperando sincronización NTP...");
+  time_t now = time(nullptr);
+  while (now < 8 * 3600 * 2)
+  {
+    delay(500);
+    Serial.print(".");
+    now = time(nullptr);
+  }
+  Serial.println("\nHora sincronizada!");
+
   client.setServer(MQTT_SERVER, MQTT_PORT);
   reconnectMQTT();
 
@@ -91,38 +73,32 @@ void loop()
     reconnectMQTT();
   }
 
-  // Leemos el valor analógico del sensor
   int sensorValue = analogRead(sensorPin);
-
-  // Convertimos el valor a un rango de 0 a 100% (invertido)
   float humedad = map(sensorValue, 4095, 0, 0, 100);
 
-  // Crear mensaje JSON
-  String payload = "{\"device_id\":\"" + String(device_id) + "\",\"sensor_type\":\"soil_moisture\",\"humidity\":" + String(humedad) + "}";
+  // Control directo de la válvula según humedad
+  if (humedad <= 40)
+  {
+    digitalWrite(valvePin, HIGH); // Abre la válvula
+  }
+  else
+  {
+    digitalWrite(valvePin, LOW); // Cierra la válvula
+  }
 
-  // Publicar datos en MQTT
+  // Obtiene fecha y hora actual (+2 horas)
+  time_t now = time(nullptr) + 2 * 3600;
+  struct tm timeinfo;
+  localtime_r(&now, &timeinfo);
+  char timeString[25];
+  strftime(timeString, sizeof(timeString), "%Y-%m-%d %H:%M:%S", &timeinfo);
+
+  String payload = "{\"device_id\":\"" + String(device_id) + "\",\"sensor_type\":\"soil_moisture\",\"humidity\":" + String(humedad) + "}";
   client.publish(("sensors/" + String(device_id) + "/data").c_str(), payload.c_str());
 
-  // Mostramos los valores en el monitor serie
-  Serial.print("Valor analógico: ");
-  Serial.print(sensorValue);
-  Serial.print(" | Humedad: ");
-  Serial.print(humedad);
-  Serial.println("%");
+  String logMsg = String(timeString) + " | Valor analógico: " + String(sensorValue) + " | Humedad: " + String(humedad) + "% | Válvula: " + (humedad <= 40 ? "ABIERTA" : "CERRADA");
+  Serial.println(logMsg);
+  client.publish(("sensors/" + String(device_id) + "/log").c_str(), logMsg.c_str());
 
-  // Mostramos los valores en el display OLED
-  display.clearDisplay(); // Limpiamos el contenido anterior
-  display.setCursor(0, 0);
-  display.println("Sensor de Humedad");
-  display.setCursor(0, 20);
-  display.print("Analogico: ");
-  display.println(sensorValue);
-  display.setCursor(0, 40);
-  display.print("Humedad: ");
-  display.print(humedad);
-  display.println("%");
-  display.display(); // Actualizamos el contenido del display
-
-  // Esperamos 5 segundos
-  delay(5000);
+  delay(300000); // Espera 5 minutos antes de la siguiente lectura
 }

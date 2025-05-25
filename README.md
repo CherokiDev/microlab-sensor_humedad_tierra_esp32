@@ -14,7 +14,6 @@ Detectar el nivel de humedad en la tierra para posibles aplicaciones de riego au
 
 - ESP32 Dev Module
 - Sensor de humedad de suelo analógico
-- Pantalla OLED
 
 ---
 
@@ -24,9 +23,19 @@ Detectar el nivel de humedad en la tierra para posibles aplicaciones de riego au
 | ----------------- | ------- |
 | VCC               | 3.3V    |
 | GND               | GND     |
-| A0 (Salida)       | GPIO 35 |
+| A0 (Salida)       | GPIO 34 |
 
-> LED opcional conectado a GPIO 2 con resistencia de 220Ω.
+> Válvula o relé conectado a GPIO 2 (con transistor y protección adecuada).
+
+---
+
+## 🚀 Características principales
+
+- Lectura periódica de humedad del suelo (cada 5 minutos).
+- Control automático de una válvula de riego: se abre si la humedad es ≤40%, se cierra si es >40%.
+- Publicación de datos y logs por MQTT.
+- Los mensajes de log incluyen la fecha y hora actual (sincronizada por NTP, ajustada +2 horas respecto a UTC).
+- Toda la lógica y logs también disponibles por el monitor serie.
 
 ---
 
