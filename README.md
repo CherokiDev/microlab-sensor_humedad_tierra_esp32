@@ -31,11 +31,12 @@ Detectar el nivel de humedad en la tierra para posibles aplicaciones de riego au
 
 ## 🚀 Características principales
 
-- Lectura periódica de humedad del suelo (cada 5 minutos).
-- Control automático de una válvula de riego: se abre si la humedad es ≤40%, se cierra si es >40%.
+- Lectura periódica de humedad del suelo (cada 3 minutos).
+- Control directo de la válvula de riego: se abre si la humedad es ≤40%, se cierra si es >40% (sin temporizador ni ciclo de ignorar el sensor).
 - Publicación de datos y logs por MQTT.
 - Los mensajes de log incluyen la fecha y hora actual (sincronizada por NTP, ajustada +2 horas respecto a UTC).
 - Toda la lógica y logs también disponibles por el monitor serie.
+- Reconexión automática de WiFi y sincronización NTP si se pierde la conexión.
 
 ---
 

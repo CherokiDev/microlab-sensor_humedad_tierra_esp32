@@ -4,6 +4,16 @@ Todas las novedades y mejoras del proyecto `microlab-sensor_humedad_tierra_esp32
 
 ---
 
+## [v1.1.2] - 2025-06-19
+
+### Cambiado
+
+- Lógica de control de la válvula simplificada: ahora la válvula se abre si la humedad es ≤40% y se cierra si es >40% en cada ciclo de lectura, eliminando el temporizador de 5 minutos y el ciclo de ignorar el sensor.
+- El intervalo de lectura del sensor se redujo a 3 minutos (antes 5 minutos).
+- Mejoras menores en la reconexión WiFi y sincronización NTP.
+
+---
+
 ## [v1.1.1] - 2025-05-25
 
 ### Añadido
